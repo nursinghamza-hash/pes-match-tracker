@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PES Arena Gaza Camp</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#0b0f14;color:#f4f7fb;font-family:Arial,sans-serif}
+.container{max-width:1100px;margin:auto;padding:16px}.hero,.panel{background:#111827;border:1px solid #273244;border-radius:16px;padding:18px;margin-bottom:16px}
+h1{margin:0 0 8px;font-size:30px}.muted{color:#9aa7b8}.tabs{display:flex;gap:8px;overflow:auto;margin-bottom:16px}
+button{border:0;border-radius:10px;padding:11px 16px;font-size:15px;cursor:pointer;background:#243044;color:#fff}
+.primary{background:#2563eb!important}.danger{background:#b91c1c}.page{display:none}.page.active{display:block}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}label{display:block;margin-bottom:6px;color:#cbd5e1}
+input,select{width:100%;padding:12px;border-radius:10px;border:1px solid #334155;background:#0f172a;color:#fff;font-size:15px}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.status{padding:10px;border-radius:10px;background:#172033;margin-bottom:12px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.stat{background:#0f172a;border:1px solid #273244;border-radius:12px;padding:14px}
+.stat b{display:block;font-size:25px;margin-top:6px}table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px solid #273244;text-align:right}
+.card{display:flex;justify-content:space-between;align-items:center;gap:8px;background:#0f172a;border:1px solid #273244;padding:12px;border-radius:10px;margin-bottom:8px}.playerCard{cursor:pointer;transition:.15s}.playerCard:hover{border-color:#4f78b8;transform:translateY(-1px)}.playerMain{flex:1}.profileHead{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}.profileStats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0}.profileStat{background:#0f172a;border:1px solid #273244;border-radius:10px;padding:10px;text-align:center}.profileStat b{display:block;font-size:22px;margin-top:4px}.resultWin{color:#86efac}.resultDraw{color:#facc15}.resultLoss{color:#fca5a5}.adminOnly{display:none}.loginBox{max-width:520px;margin:auto}.readonly{opacity:.7}
+@media(max-width:700px){.grid{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<div class="container">
+<section class="hero"><h1>⚽ PES Arena Gaza Camp</h1><p class="muted">سجل اللاعبين والمباريات والإحصائيات.</p><div id="status" class="status">أدخل بيانات Supabase أولاً.</div></section>
+<div class="tabs">
+<button onclick="page('home')">الرئيسية</button>
+<button onclick="page('players')">اللاعبون</button>
+<button onclick="page('matches')">المباريات</button>
+<button onclick="page('head')">مواجهات</button>
+<button id="loginTab" onclick="page('backup')">🔐 دخول المدير</button>
+<button id="adminTab" class="adminOnly" onclick="page('admin')">🔐 الإدارة</button>
+</div>
+
+<section id="home" class="page active"><div class="panel"><h2>الإحصائيات</h2><div class="stats">
+<div class="stat">🎮 المباريات<b id="tm">0</b></div><div class="stat">🏆 الانتصارات<b id="tw">0</b></div>
+<div class="stat">🤝 التعادلات<b id="td">0</b></div><div class="stat">⚽ الأهداف<b id="tg">0</b></div>
+</div></div><div class="panel"><h2>آخر المباريات</h2><div id="recent"></div></div></section>
+
+<section id="players" class="page">
+<div id="playerAdminBox" class="panel adminOnly"><h2>إضافة لاعب</h2><label>اسم اللاعب</label><input id="newPlayer" placeholder="اسم اللاعب">
+<div class="actions"><button class="primary" onclick="addPlayer()">إضافة</button></div></div>
+<div class="panel"><h2>اللاعبون</h2><p class="muted">اضغط على اسم أي لاعب لعرض سجله الكامل.</p><div id="playerList"></div></div>
+<div id="playerProfile" class="panel" style="display:none"></div>
+</section>
+
+<section id="matches" class="page">
+<div id="matchAdminBox" class="panel adminOnly"><h2>إضافة مباراة</h2><div class="grid">
+<div><label>اللاعب الأول</label><select id="p1"></select></div><div><label>اللاعب الثاني</label><select id="p2"></select></div>
+<div><label>نتيجة الأول</label><input id="s1" type="number" min="0" value="0"></div><div><label>نتيجة الثاني</label><input id="s2" type="number" min="0" value="0"></div>
+<div><label>التاريخ</label><input id="date" type="date"></div><div><label>ملاحظات</label><input id="notes"></div>
+</div><div class="actions"><button class="primary" onclick="addMatch()">حفظ المباراة</button></div></div>
+<div class="panel"><h2>سجل المباريات</h2><div style="overflow:auto"><table><thead><tr><th>التاريخ</th><th>الأول</th><th>النتيجة</th><th>الثاني</th><th class="adminOnly">إدارة</th></tr></thead><tbody id="mt"></tbody></table></div></div></section>
+
+<section id="head" class="page"><div class="panel"><h2>لاعب ضد لاعب</h2><div class="grid"><div><label>الأول</label><select id="h1"></select></div><div><label>الثاني</label><select id="h2"></select></div></div>
+<div class="actions"><button class="primary" onclick="headStats()">عرض</button></div><div id="hr"></div></div></section>
+
+<section id="backup" class="page"><div class="panel"><h2>دخول المدير</h2>
+<div id="loginBox" class="loginBox">
+<label>البريد الإلكتروني</label><input id="loginEmail" type="email" autocomplete="username" placeholder="بريد حساب المدير">
+<label style="margin-top:10px">كلمة المرور</label><input id="loginPassword" type="password" autocomplete="current-password" placeholder="كلمة المرور">
+<div class="actions"><button class="primary" onclick="login()">دخول</button></div>
+<p id="loginMsg" class="muted">الزوار لا يملكون صلاحية إضافة أو تعديل أو حذف النتائج.</p>
+</div>
+<div id="loggedBox" class="adminOnly">
+<p>أنت داخل بحساب المدير. الآن فقط يمكنك إضافة/تعديل/حذف البيانات.</p>
+<div class="actions"><button onclick="backup()">تصدير نسخة احتياطية</button><button class="danger" onclick="logout()">تسجيل الخروج</button></div>
+</div>
+</div></section>
+
+<section id="admin" class="page">
+<div class="panel"><h2>🔐 لوحة الإدارة</h2><p id="adminStatus" class="muted"></p>
+<div class="actions"><button onclick="page('players')">إدارة اللاعبين</button><button onclick="page('matches')">إدارة المباريات</button><button onclick="backup()">نسخة احتياطية</button><button class="danger" onclick="logout()">تسجيل الخروج</button></div></div>
+</section>
+</div>
+
+<script>
+const SUPABASE_URL="https://iozrwutzlrcuboovieyl.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY="sb_publishable_zz_ICY1n-M9K7H77AZBUDQ_AkKzdme3";
+const OWNER_USER_ID="87205d82-e2b8-4f86-9956-9d06108eaaa4";
+let sb=null,players=[],matches=[],currentUser=null;
+
+function page(id){
+  document.querySelectorAll(".page").forEach(x=>x.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+}
+function esc(x){return String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]||c))}
+function name(id){return players.find(x=>x.id===id)?.name||"غير معروف"}
+function isAdmin(){return !!currentUser && currentUser.id===OWNER_USER_ID}
+function status(t,ok=false){
+  const e=document.getElementById("status");
+  e.textContent=t;e.style.color=ok?"#86efac":"#fca5a5";
+}
+function setAdminUI(){
+  const admin=isAdmin();
+  document.querySelectorAll(".adminOnly").forEach(e=>e.style.display=admin?"block":"none");
+  document.getElementById("adminTab").style.display=admin?"block":"none";
+  document.getElementById("loginTab").style.display=admin?"none":"block";
+  document.querySelectorAll("#mt .adminOnly").forEach(e=>e.style.display=admin?"table-cell":"none");
+  document.getElementById("loggedBox").style.display=admin?"block":"none";
+  document.getElementById("loginBox").style.display=admin?"none":"block";
+  if(admin){
+    document.getElementById("adminStatus").textContent="تم تسجيل الدخول كمدير.";
+    document.getElementById("loginMsg").textContent="";
+  }
+  render();
+}
+async function init(){
+  document.getElementById("date").value=new Date().toISOString().slice(0,10);
+  sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
+  const {data}=await sb.auth.getSession();
+  currentUser=data?.session?.user||null;
+  setAdminUI();
+  await load();
+  sb.auth.onAuthStateChange((_event,session)=>{
+    currentUser=session?.user||null;
+    setAdminUI();
+  });
+}
+async function login(){
+  const email=document.getElementById("loginEmail").value.trim();
+  const password=document.getElementById("loginPassword").value;
+  if(!email||!password)return document.getElementById("loginMsg").textContent="أدخل البريد وكلمة المرور.";
+  const {data,error}=await sb.auth.signInWithPassword({email,password});
+  if(error)return document.getElementById("loginMsg").textContent="فشل الدخول: "+error.message;
+  currentUser=data.user;
+  setAdminUI();
+  await load();
+  page("admin");
+}
+async function logout(){
+  await sb.auth.signOut();
+  currentUser=null;
+  setAdminUI();
+  page("home");
+  status("تم تسجيل الخروج. الموقع الآن للعرض فقط.",true);
+}
+async function load(){
+  try{
+    let a=await sb.from("players").select("*").order("created_at",{ascending:true});
+    if(a.error)throw a.error; players=a.data||[];
+    let b=await sb.from("matches").select("*").order("played_at",{ascending:false});
+    if(b.error)throw b.error; matches=b.data||[];
+    status(isAdmin()?"تم الاتصال بـ Supabase — وضع المدير 🔐":"تم الاتصال بـ Supabase — عرض فقط 👀",true);
+    render();
+  }catch(e){status("خطأ: "+e.message)}
+}
+function render(){selects();playersUI();matchesUI();stats();recent();setAdminUIOnce();const pp=document.getElementById("playerProfile");if(pp)pp.style.display="none"}
+function setAdminUIOnce(){
+  const admin=isAdmin();
+  document.querySelectorAll(".adminOnly").forEach(e=>{
+    if(e.id==="loggedBox"||e.id==="loginBox") return;
+    e.style.display=admin?"block":"none";
+  });
+  document.querySelectorAll("#mt .adminOnly").forEach(e=>e.style.display=admin?"table-cell":"none");
+}
+function selects(){
+  ["p1","p2","h1","h2"].forEach(id=>{
+    let e=document.getElementById(id),v=e.value;
+    e.innerHTML='<option value="">اختر...</option>'+players.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join("");
+    e.value=v;
+  });
+}
+async function addPlayer(){
+  if(!isAdmin())return alert("هذه العملية للمدير فقط");
+  let n=document.getElementById("newPlayer").value.trim();
+  if(!n)return alert("اكتب اسم اللاعب");
+  let r=await sb.from("players").insert({user_id:currentUser.id,name:n});
+  if(r.error)return alert(r.error.message);
+  document.getElementById("newPlayer").value=""; await load();
+}
+function playersUI(){
+  document.getElementById("playerList").innerHTML=players.length?
+    players.map(p=>`<div class="card playerCard" onclick="showPlayerProfile('${p.id}')">
+      <div class="playerMain"><b>👤 ${esc(p.name)}</b><div class="muted" style="margin-top:4px">اضغط لعرض السجل</div></div>
+      ${isAdmin()?`<button class="danger" onclick="event.stopPropagation();delPlayer('${p.id}')">حذف</button>`:""}
+    </div>`).join("")
+    :"لا يوجد لاعبين";
+} 
+
+function showPlayerProfile(id){
+  const p=players.find(x=>x.id===id);
+  if(!p)return;
+  const ms=matches.filter(m=>m.player1_id===id||m.player2_id===id)
+                  .sort((a,b)=>String(b.played_at||"").localeCompare(String(a.played_at||"")));
+  let wins=0,draws=0,losses=0,goalsFor=0,goalsAgainst=0;
+  ms.forEach(m=>{
+    const isP1=m.player1_id===id;
+    const gf=Number(isP1?m.player1_score:m.player2_score);
+    const ga=Number(isP1?m.player2_score:m.player1_score);
+    goalsFor+=gf; goalsAgainst+=ga;
+    if(gf>ga)wins++; else if(gf===ga)draws++; else losses++;
+  });
+  const profile=document.getElementById("playerProfile");
+  profile.style.display="block";
+  profile.innerHTML=`
+    <div class="profileHead">
+      <div><h2 style="margin:0">👤 سجل اللاعب: ${esc(p.name)}</h2>
+      <p class="muted" style="margin:6px 0 0">جميع المباريات المسجلة لهذا اللاعب</p></div>
+      <button onclick="document.getElementById('playerProfile').style.display='none'">إغلاق</button>
+    </div>
+    <div class="profileStats">
+      <div class="profileStat">🎮 المباريات<b>${ms.length}</b></div>
+      <div class="profileStat">🏆 الفوز<b>${wins}</b></div>
+      <div class="profileStat">🤝 التعادل<b>${draws}</b></div>
+      <div class="profileStat">❌ الخسارة<b>${losses}</b></div>
+      <div class="profileStat">⚽ له<b>${goalsFor}</b></div>
+      <div class="profileStat">🥅 عليه<b>${goalsAgainst}</b></div>
+      <div class="profileStat">📊 فارق الأهداف<b>${goalsFor-goalsAgainst}</b></div>
+      <div class="profileStat">🏅 نسبة الفوز<b>${ms.length?Math.round(wins/ms.length*100):0}%</b></div>
+    </div>
+    <h3>📋 سجل المباريات</h3>
+    ${ms.length?`<div style="overflow:auto"><table>
+      <thead><tr><th>التاريخ</th><th>الخصم</th><th>النتيجة</th><th>الحالة</th><th>ملاحظات</th></tr></thead>
+      <tbody>${ms.map(m=>{
+        const isP1=m.player1_id===id;
+        const opponent=name(isP1?m.player2_id:m.player1_id);
+        const gf=Number(isP1?m.player1_score:m.player2_score);
+        const ga=Number(isP1?m.player2_score:m.player1_score);
+        const result=gf>ga?["فوز","resultWin"]:gf===ga?["تعادل","resultDraw"]:["خسارة","resultLoss"];
+        return `<tr>
+          <td>${esc(String(m.played_at||"").slice(0,10)||"—")}</td>
+          <td>👤 ${esc(opponent)}</td>
+          <td><b>${gf} - ${ga}</b></td>
+          <td class="${result[1]}"><b>${result[0]}</b></td>
+          <td>${esc(m.notes||"—")}</td>
+        </tr>`;
+      }).join("")}</tbody>
+    </table></div>`:`<p class="muted">لا توجد مباريات مسجلة لهذا اللاعب.</p>`}
+  `;
+  profile.scrollIntoView({behavior:"smooth",block:"start"});
+}
+async function delPlayer(id){
+  if(!isAdmin())return alert("هذه العملية للمدير فقط");
+  if(matches.some(m=>m.player1_id===id||m.player2_id===id))return alert("لا يمكن حذف لاعب لديه مباريات");
+  if(!confirm("حذف اللاعب؟"))return;
+  let r=await sb.from("players").delete().eq("id",id);
+  if(r.error)return alert(r.error.message);
+  await load();
+}
+async function addMatch(){
+  if(!isAdmin())return alert("هذه العملية للمدير فقط");
+  let a=document.getElementById("p1").value,b=document.getElementById("p2").value;
+  let x=+document.getElementById("s1").value,y=+document.getElementById("s2").value;
+  if(!a||!b||a===b)return alert("اختر لاعبين مختلفين");
+  if(x<0||y<0)return alert("النتيجة لا يمكن أن تكون سالبة");
+  let r=await sb.from("matches").insert({
+    user_id:currentUser.id,player1_id:a,player2_id:b,
+    player1_score:x,player2_score:y,
+    played_at:document.getElementById("date").value,
+    notes:document.getElementById("notes").value||null
+  });
+  if(r.error)return alert(r.error.message);
+  await load();
+}
+function matchesUI(){
+  document.getElementById("mt").innerHTML=matches.length?
+    matches.map(m=>`<tr>
+      <td>${String(m.played_at||"").slice(0,10)}</td>
+      <td>${esc(name(m.player1_id))}</td>
+      <td><b>${m.player1_score}-${m.player2_score}</b></td>
+      <td>${esc(name(m.player2_id))}</td>
+      <td class="adminOnly">${isAdmin()?`<button onclick="editMatch('${m.id}')">تعديل</button> <button class="danger" onclick="delMatch('${m.id}')">حذف</button>`:""}</td>
+    </tr>`).join("")
+    :'<tr><td colspan="5">لا توجد مباريات</td></tr>';
+  document.querySelectorAll("#mt .adminOnly").forEach(e=>e.style.display=isAdmin()?"table-cell":"none");
+}
+async function editMatch(id){
+  if(!isAdmin())return alert("هذه العملية للمدير فقط");
+  const m=matches.find(x=>x.id===id); if(!m)return;
+  const a=prompt("نتيجة "+name(m.player1_id),m.player1_score);
+  if(a===null)return;
+  const b=prompt("نتيجة "+name(m.player2_id),m.player2_score);
+  if(b===null)return;
+  const x=Number(a),y=Number(b);
+  if(!Number.isInteger(x)||!Number.isInteger(y)||x<0||y<0)return alert("أدخل أرقامًا صحيحة غير سالبة");
+  const r=await sb.from("matches").update({
+    player1_score:x,player2_score:y
+  }).eq("id",id);
+  if(r.error)return alert(r.error.message);
+  await load();
+}
+async function delMatch(id){
+  if(!isAdmin())return alert("هذه العملية للمدير فقط");
+  if(!confirm("حذف المباراة؟"))return;
+  let r=await sb.from("matches").delete().eq("id",id);
+  if(r.error)return alert(r.error.message);
+  await load();
+}
+function stats(){
+  let w=0,d=0,g=0;
+  matches.forEach(m=>{
+    g+=+m.player1_score + +m.player2_score;
+    if(m.player1_score==m.player2_score)d++;else w++;
+  });
+  tm.textContent=matches.length;tw.textContent=w;td.textContent=d;tg.textContent=g;
+}
+function recent(){
+  recent.innerHTML=matches.slice(0,5).map(m=>`<div class="card">${esc(name(m.player1_id))} <b>${m.player1_score}-${m.player2_score}</b> ${esc(name(m.player2_id))}<span class="muted">${String(m.played_at||"").slice(0,10)}</span></div>`).join("")||"لا توجد مباريات";
+}
+function headStats(){
+  let a=h1.value,b=h2.value;
+  if(!a||!b||a===b)return hr.innerHTML="<p>اختر لاعبين مختلفين</p>";
+  let ms=matches.filter(m=>(m.player1_id===a&&m.player2_id===b)||(m.player1_id===b&&m.player2_id===a)),w=0,d=0,l=0,ga=0,gb=0;
+  ms.forEach(m=>{
+    let x=m.player1_id===a?m.player1_score:m.player2_score,y=m.player1_id===a?m.player2_score:m.player1_score;
+    ga+=+x;gb+=+y;if(x>y)w++;else if(x==y)d++;else l++;
+  });
+  hr.innerHTML=`<div class="stats"><div class="stat">المباريات<b>${ms.length}</b></div><div class="stat">فوز ${esc(name(a))}<b>${w}</b></div><div class="stat">تعادل<b>${d}</b></div><div class="stat">أهداف ${esc(name(a))}<b>${ga}</b></div></div><p>خسائر: ${l} — أهداف الخصم: ${gb}</p>`;
+}
+function backup(){
+  if(!isAdmin())return alert("النسخة الاحتياطية للمدير فقط");
+  let b=new Blob([JSON.stringify({players,matches},null,2)],{type:"application/json"});
+  let a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="pes_arena_backup.json";a.click();
+}
+init();
+</script>
+</body>
+</html>
